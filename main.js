@@ -42,16 +42,13 @@ client.on('messageCreate', async (message) => {
     
         play(serverQueue);
       } else {
-        serverQueue.songs.push(url);
-        return message.channel.send(`**${url}** has been added to the queue!`);
+        serverQueue.songs.push(url); //Maybe use this and just add to queue
+        return message.channel.send(`**${url}** has been added to the queue!`); // Split this so I will actually work
       }
     } else if (message.content.startsWith('!skip')) {
       const serverQueue = queues.get(message.guild.id);
   
       if (!serverQueue || serverQueue.songs.length == 0) {
-        if (serverQueue && serverQueue.connection) { //Remove this in future to prevent leaving channel 
-          serverQueue.connection.disconnect();
-        }
         queues.delete(serverQueue.guildId);
         return message.reply('There is no song to skip!');
       } else {
@@ -125,15 +122,15 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     }
 });
 
-client.on('voiceStateUpdate', async (oldState, newState) => {
+client.on('voiceStateUpdate', async (oldState, newState) => { //Don leave
     if (oldState.channelId && !newState.channelId && newState.member.id === targetUserDon) {
         const url = 'https://youtu.be/igSHbtv52G4'; 
 
         const connection = joinVoiceChannel({
-            channelId: newState.channelId,
-            guildId: newState.guild.id,
-            adapterCreator: newState.guild.voiceAdapterCreator,
-        });
+          channelId: oldState.channelId,
+          guildId: oldState.guild.id,
+          adapterCreator: oldState.guild.voiceAdapterCreator,
+      });
 
         const streamResult = await streamDL(url, { quality: 0 });
         const resource = createAudioResource(streamResult.stream, { inputType: streamResult.type });
