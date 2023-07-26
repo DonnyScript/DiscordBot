@@ -15,7 +15,7 @@ client.on('messageCreate', async (message) => {
       if (!url) return message.reply(`There's this thing called a URL its kind of important`);
   
       const channel = message.member.voice.channel;
-      if (!channel) return message.reply('Join a channel my VERY VERY high IQ friend!');
+      if (!channel) return message.reply('Join a channel my VERY VERY high IQ enemy!');
   
       let serverQueue = queues.get(message.guild.id);
   
@@ -52,7 +52,7 @@ client.on('messageCreate', async (message) => {
         if (serverQueue && serverQueue.connection) {
           serverQueue.connection.disconnect();
         }
-        queues.delete(message.guild.id);
+        queues.delete(serverQueue.guildId);
         return message.reply('There is no song to skip!');
       } else {
         serverQueue.songs.shift();
@@ -81,7 +81,6 @@ client.on('messageCreate', async (message) => {
     const url = serverQueue.songs[0];
   
     if (!url) {
-      serverQueue.connection.disconnect();
       queues.delete(serverQueue.guildId);
       return;
     }
