@@ -76,9 +76,8 @@ client.on('messageCreate', async (message) => {
         queues.delete(serverQueue.guildId);
         return;
       } else if (message.content.startsWith('!byebyebtb')){
-        // btb id 265667476509949969
         const serverQueue = queues.get(message.guild.id);
-        let targetUser = await message.guild.members.fetch('418235415665836033');
+        let targetUser = await message.guild.members.fetch('265667476509949969');
         if (message.member.voice.channel) {
             const connection = joinVoiceChannel({
               channelId: message.member.voice.channel.id,
