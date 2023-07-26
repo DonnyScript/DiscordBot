@@ -1,6 +1,6 @@
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus,VoiceConnectionStatus, getVoiceConnection } = require('@discordjs/voice');
-const ytdl = require('ytdl-core');
+const {stream: streamDL} = require('play-dl');
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent,GatewayIntentBits.GuildVoiceStates] });
 const queues = new Map();
 
@@ -49,7 +49,7 @@ client.on('messageCreate', async (message) => {
       const serverQueue = queues.get(message.guild.id);
   
       if (!serverQueue || serverQueue.songs.length == 0) {
-        if (serverQueue && serverQueue.connection) {
+        if (serverQueue && serverQueue.connection) { //Remove this in future to prevent leaving channel 
           serverQueue.connection.disconnect();
         }
         queues.delete(serverQueue.guildId);
@@ -85,8 +85,8 @@ client.on('messageCreate', async (message) => {
       return;
     }
   
-    const stream = ytdl(url, { filter: 'audioonly' });
-    const resource = createAudioResource(stream);
+    const stream = await streamDL(url, { quality: 0 });
+    const resource = createAudioResource(stream.stream, { inputType: stream.type });
     const player = createAudioPlayer();
   
     player.on('error', error => {
@@ -102,6 +102,107 @@ client.on('messageCreate', async (message) => {
     serverQueue.connection.subscribe(player);
     
   }
+  
+
+const targetUserDon = '418235415665836033'; //Don join
+
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    if (!oldState.channelId && newState.channelId && newState.member.id === targetUserDon) {
+        const url = 'https://youtu.be/jRWR0Ob6mLI'; 
+
+        const connection = joinVoiceChannel({
+            channelId: newState.channelId,
+            guildId: newState.guild.id,
+            adapterCreator: newState.guild.voiceAdapterCreator,
+        });
+
+        const streamResult = await streamDL(url, { quality: 0 });
+        const resource = createAudioResource(streamResult.stream, { inputType: streamResult.type });
+        const player = createAudioPlayer();
+
+        player.play(resource);
+        connection.subscribe(player);
+    }
+});
+
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    if (oldState.channelId && !newState.channelId && newState.member.id === targetUserDon) {
+        const url = 'https://youtu.be/igSHbtv52G4'; 
+
+        const connection = joinVoiceChannel({
+            channelId: newState.channelId,
+            guildId: newState.guild.id,
+            adapterCreator: newState.guild.voiceAdapterCreator,
+        });
+
+        const streamResult = await streamDL(url, { quality: 0 });
+        const resource = createAudioResource(streamResult.stream, { inputType: streamResult.type });
+        const player = createAudioPlayer();
+
+        player.play(resource);
+        connection.subscribe(player);
+    }
+});
+
+const targetUserAlex = '187361060045586434'; //Alex join
+
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    if (!oldState.channelId && newState.channelId && newState.member.id === targetUserAlex) {
+        const url = 'https://youtu.be/0fwGZFp3eFs'; 
+        const connection = joinVoiceChannel({
+            channelId: newState.channelId,
+            guildId: newState.guild.id,
+            adapterCreator: newState.guild.voiceAdapterCreator,
+        });
+
+        const streamResult = await streamDL(url, { quality: 0 });
+        const resource = createAudioResource(streamResult.stream, { inputType: streamResult.type });
+        const player = createAudioPlayer();
+
+        player.play(resource);
+        connection.subscribe(player);
+    }
+});
+
+const targetUserJack = '187317666569125889'; //Jack join
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    if (!oldState.channelId && newState.channelId && newState.member.id === targetUserJack) {
+        const url = 'https://youtu.be/nHc288IPFzk'; 
+
+        const connection = joinVoiceChannel({
+            channelId: newState.channelId,
+            guildId: newState.guild.id,
+            adapterCreator: newState.guild.voiceAdapterCreator,
+        });
+
+        const streamResult = await streamDL(url, { quality: 0 });
+        const resource = createAudioResource(streamResult.stream, { inputType: streamResult.type });
+        const player = createAudioPlayer();
+
+        player.play(resource);
+        connection.subscribe(player);
+    }
+});
+
+const targetUserAidan = '683092346635943987'; //Aidan join
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    if (!oldState.channelId && newState.channelId && newState.member.id === targetUserAidan) {
+        const url = 'https://youtu.be/LrLcRCLwE7c'; 
+
+        const connection = joinVoiceChannel({
+            channelId: newState.channelId,
+            guildId: newState.guild.id,
+            adapterCreator: newState.guild.voiceAdapterCreator,
+        });
+
+        const streamResult = await streamDL(url, { quality: 0 });
+        const resource = createAudioResource(streamResult.stream, { inputType: streamResult.type });
+        const player = createAudioPlayer();
+
+        player.play(resource);
+        connection.subscribe(player);
+    }
+});
 
 //Last line
 client.login('MTEzMzQ2NDAwNjE1NDI3Mjg5OQ.GiFp7R.XSmUS7vcLuIzsZXqKnirGbQ2vDUGtf05BlXVok');

@@ -22,3 +22,5 @@ else if (message.content.startsWith('!byebyebtb')){
         message.reply('Join a voice channel first!');
       }
   }
+
+  
