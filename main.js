@@ -185,12 +185,40 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
   }
 });
 
+const targetUserRon = '169548589209485312'; //Ron join
+
+client.on('voiceStateUpdate', async (oldState, newState) => {
+  if (!oldState.channelId && newState.channelId && newState.member.id === targetUserRon) {
+      const url = 'https://youtu.be/sZNCyZ9MzFM'; 
+
+      let serverQueue = queues.get(newState.guild.id);
+
+      if (serverQueue) {
+          serverQueue.songs.push(url);
+          console.log(`**${url}** has been added to the queue!`);
+      } else {
+          console.log(`No queue found for this guild.`);
+          const connection = joinVoiceChannel({
+                      channelId: newState.channelId,
+                      guildId: newState.guild.id,
+                      adapterCreator: oldState.guild.voiceAdapterCreator,
+                  });
+          const streamResult = await streamDL(url, { quality: 0 });
+        const resource = createAudioResource(streamResult.stream, { inputType: streamResult.type });
+        const player = createAudioPlayer();
+
+        player.play(resource);
+        connection.subscribe(player);
+      }
+  }
+});
+
 
 const targetUserAidan = '683092346635943987'; //Aidan join
 
 client.on('voiceStateUpdate', async (oldState, newState) => {
   if (!oldState.channelId && newState.channelId && newState.member.id === targetUserAidan) {
-      const url = 'https://youtu.be/LrLcRCLwE7c'; 
+      const url = 'https://youtu.be/6Tt3-pH_-uI'; 
 
       let serverQueue = queues.get(newState.guild.id);
 
