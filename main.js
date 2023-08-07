@@ -25,7 +25,7 @@ const client = new Client({
 const queues = new Map();
 
 client.once("ready", () => {
-  console.log("Good luck idiot!");
+  console.log(`We have logged in as ${client.user.tag}!`)
 });
 
 client.on("messageCreate", async (message) => {
@@ -37,7 +37,7 @@ client.on("messageCreate", async (message) => {
 
     const channel = message.member.voice.channel;
     if (!channel)
-      return message.reply("Join a channel my VERY VERY high IQ enemy!");
+      return message.reply("Join a channel!");
 
     let serverQueue = queues.get(message.guild.id);
 
