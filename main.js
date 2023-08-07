@@ -1,6 +1,7 @@
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus,VoiceConnectionStatus, getVoiceConnection } = require('@discordjs/voice');
 const {stream: streamDL} = require('play-dl');
+require('events').EventEmitter.defaultMaxListeners = 100;
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent,GatewayIntentBits.GuildVoiceStates] });
 const queues = new Map();
 
@@ -45,12 +46,27 @@ client.on('messageCreate', async (message) => {
         serverQueue.songs.push(url); 
         return message.channel.send(`**${url}** has been added to the queue!`);
       }
-    } else if (message.content.startsWith('!skip')) {
+    } else if (message.content.startsWith('!skip')) { 
       const serverQueue = queues.get(message.guild.id);
   
       if (!serverQueue || serverQueue.songs.length == 0) {
+
         queues.delete(serverQueue.guildId);
         return message.reply('There is no song to skip!');
+
+      } else if (serverQueue.songs.length == 1) {
+
+        message.reply('Skipping last song')
+        const connection = getVoiceConnection(serverQueue.guildId);
+        const player = connection?.state.subscription?.player;
+      
+        // Stop the current playback
+        player?.stop();
+      
+        // Shift the song from the queue
+        serverQueue.songs.shift();
+        play(serverQueue);
+
       } else {
         serverQueue.songs.shift();
         play(serverQueue);
@@ -82,7 +98,7 @@ client.on('messageCreate', async (message) => {
       return;
     }
   
-    const stream = await streamDL(url, { quality: 0 });
+    const stream = await streamDL(url, { quality: 1 });
     const resource = createAudioResource(stream.stream, { inputType: stream.type });
     const player = createAudioPlayer();
   
@@ -105,7 +121,35 @@ const targetUserDon = '418235415665836033'; //Don join
 
 client.on('voiceStateUpdate', async (oldState, newState) => {
   if (!oldState.channelId && newState.channelId && newState.member.id === targetUserDon) {
-      const url = 'https://youtu.be/SZ3ECJtNO5Q'; 
+      const url = 'https://www.youtube.com/watch?v=ZlfWZEeVsIs'; 
+
+      let serverQueue = queues.get(newState.guild.id);
+
+      if (serverQueue) {
+          serverQueue.songs.push(url);
+          console.log(`**${url}** has been added to the queue!`);
+      } else {
+          console.log(`No queue found for this guild.`);
+          const connection = joinVoiceChannel({
+                      channelId: newState.channelId,
+                      guildId: newState.guild.id,
+                      adapterCreator: oldState.guild.voiceAdapterCreator,
+                  });
+          const streamResult = await streamDL(url, { quality: 0 });
+        const resource = createAudioResource(streamResult.stream, { inputType: streamResult.type });
+        const player = createAudioPlayer();
+
+        player.play(resource);
+        connection.subscribe(player);
+      }
+  }
+});
+
+const targetUserAdam = '169243685681233921'; //Adam join
+
+client.on('voiceStateUpdate', async (oldState, newState) => {
+  if (!oldState.channelId && newState.channelId && newState.member.id === targetUserAdam) {
+      const url = 'https://www.youtube.com/watch?v=bhw9dm6Aa7E'; 
 
       let serverQueue = queues.get(newState.guild.id);
 
@@ -275,6 +319,62 @@ const targetUserMatthew = '288487330224799754'; //Matthew join
 client.on('voiceStateUpdate', async (oldState, newState) => {
   if (!oldState.channelId && newState.channelId && newState.member.id === targetUserMatthew) {
       const url = 'https://youtu.be/Az3MPCGZErw'; 
+
+      let serverQueue = queues.get(newState.guild.id);
+
+      if (serverQueue) {
+          serverQueue.songs.push(url);
+          console.log(`**${url}** has been added to the queue!`);
+      } else {
+          console.log(`No queue found for this guild.`);
+          const connection = joinVoiceChannel({
+                      channelId: newState.channelId,
+                      guildId: newState.guild.id,
+                      adapterCreator: oldState.guild.voiceAdapterCreator,
+                  });
+          const streamResult = await streamDL(url, { quality: 0 });
+        const resource = createAudioResource(streamResult.stream, { inputType: streamResult.type });
+        const player = createAudioPlayer();
+
+        player.play(resource);
+        connection.subscribe(player);
+      }
+  }
+});
+
+const targetUserDale = '286660053904392192'; //Dale join
+
+client.on('voiceStateUpdate', async (oldState, newState) => {
+  if (!oldState.channelId && newState.channelId && newState.member.id === targetUserDale) {
+      const url = 'https://youtu.be/Ntl3xYpcArk'; 
+
+      let serverQueue = queues.get(newState.guild.id);
+
+      if (serverQueue) {
+          serverQueue.songs.push(url);
+          console.log(`**${url}** has been added to the queue!`);
+      } else {
+          console.log(`No queue found for this guild.`);
+          const connection = joinVoiceChannel({
+                      channelId: newState.channelId,
+                      guildId: newState.guild.id,
+                      adapterCreator: oldState.guild.voiceAdapterCreator,
+                  });
+          const streamResult = await streamDL(url, { quality: 0 });
+        const resource = createAudioResource(streamResult.stream, { inputType: streamResult.type });
+        const player = createAudioPlayer();
+
+        player.play(resource);
+        connection.subscribe(player);
+      }
+  }
+});
+
+const targetUserNick = '284460599356948481'; //Nick join
+
+client.on('voiceStateUpdate', async (oldState, newState) => {
+  if (!oldState.channelId && newState.channelId && newState.member.id === targetUserNick) {
+      const url = 'https://youtu.be/MifVMz_THmI'; 
 
       let serverQueue = queues.get(newState.guild.id);
 
