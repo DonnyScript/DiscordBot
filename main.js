@@ -10,6 +10,7 @@ const {
   demuxProbe,
   NoSubscriberBehavior,
 } = require("@discordjs/voice");
+const fs = require('fs');
 const { stream: streamDL } = require("play-dl");
 const search = require("play-dl");
 require("events").EventEmitter.defaultMaxListeners = 100;
@@ -153,6 +154,16 @@ client.on("messageCreate", async (message) => {
     serverQueue.connection.disconnect();
     queues.delete(serverQueue.guildId);
     return;
+  } else if (message.content.startsWith("!seturl")) {
+    const url = message.content.split(' ')[1];
+    if (!url || !isValidURL(url)) {
+      return message.reply('Please provide a valid YouTube URL!');
+    }
+
+    userURLs.set(message.author.id, url);
+    fs.writeFileSync('userURLs.json', JSON.stringify([...userURLs]));
+
+    return message.reply(`Your custom YouTube URL has been set to: ${url}`);
   }
 });
 async function play(serverQueue) {
@@ -191,23 +202,28 @@ function isValidURL(str) {
   }
 }
 
-const userURLs = {
-    "418235415665836033": "https://www.youtube.com/watch?v=ZlfWZEeVsIs", // Don
-    "169243685681233921": "https://www.youtube.com/watch?v=bhw9dm6Aa7E", // Adam
-    "187361060045586434": "https://youtu.be/0fwGZFp3eFs", // Alex 
-    "187317666569125889": "https://youtu.be/nHc288IPFzk", // Jack
-    "169548589209485312": "https://youtu.be/sZNCyZ9MzFM", // Ron
-    "683092346635943987": "https://youtu.be/6Tt3-pH_-uI", // Aidan
-    "320763862213197824":  "https://youtu.be/-I50RSN8H1I", // Nate
-    "288487330224799754": "https://youtu.be/Az3MPCGZErw", // Matthew
-    "286660053904392192": "https://youtu.be/Ntl3xYpcArk", // Dale
-    "284460599356948481": "https://youtu.be/MifVMz_THmI", // Nick
-    "145885178701676544": "https://youtu.be/JowcMqHitew", // Matt
-  };
+if (fs.existsSync('userURLs.json')) {
+  const urlsFromFile = JSON.parse(fs.readFileSync('userURLs.json'));
+  userURLs = new Map(urlsFromFile);
+}
+
+const userURLs = new Map([
+    ["418235415665836033", "https://www.youtube.com/watch?v=ZlfWZEeVsIs"], // Don
+    ["169243685681233921", "https://www.youtube.com/watch?v=bhw9dm6Aa7E"], // Adam
+    ["187361060045586434", "https://youtu.be/0fwGZFp3eFs"], // Alex 
+    ["187317666569125889", "https://youtu.be/nHc288IPFzk"], // Jack
+    ["169548589209485312", "https://youtu.be/sZNCyZ9MzFM"], // Ron
+    ["683092346635943987","https://youtu.be/6Tt3-pH_-uI"], // Aidan
+    ["320763862213197824",  "https://youtu.be/-I50RSN8H1I"], // Nate
+    ["288487330224799754", "https://youtu.be/Az3MPCGZErw"], // Matthew
+    ["286660053904392192", "https://youtu.be/Ntl3xYpcArk"], // Dale
+    ["284460599356948481", "https://youtu.be/MifVMz_THmI"], // Nick
+    ["145885178701676544", "https://youtu.be/JowcMqHitew"], // Matt
+]);
 
   client.on("voiceStateUpdate", async (oldState, newState) => {
     if (!oldState.channelId && newState.channelId) {
-      const url = userURLs[newState.member.id];
+      const url = userURLs.get(newState.member.id);
       if (url) { // Check if the user has a custom URL
         let serverQueue = queues.get(newState.guild.id);
   
