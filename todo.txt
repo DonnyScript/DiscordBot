@@ -1,0 +1,3 @@
+Allow uers to assign songs 
+Make the join function extendable 
+Make a struct with userID variable and youtube value url
