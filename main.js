@@ -120,21 +120,33 @@ client.on("messageCreate", async (message) => {
   } else if (message.content.startsWith("!skip")) {
     const serverQueue = queues.get(message.guild.id);
 
-    if (!serverQueue || serverQueue.songs.length == 0) {
-      queues.delete(serverQueue.guildId);
-      return message.reply("There is no song to skip!");
-    } else if (serverQueue.songs.length == 1) {
-      message.reply("Skipping last song");
-      const connection = getVoiceConnection(serverQueue.guildId);
-      const player = connection?.state.subscription?.player;
-
-      player?.stop();
-
-      serverQueue.songs.shift();
-      play(serverQueue);
-    } else {
-      serverQueue.songs.shift();
-      play(serverQueue);
+    if (!serverQueue) {
+      message.reply("There is no queue to skip!");
+      return;
+    }
+  
+    if (serverQueue.songs.length === 0) {
+      message.reply("There are no songs to skip!");
+      return;
+    }
+  
+    try {
+      if (serverQueue.songs.length === 1) {
+        message.reply("Skipping last song");
+        const connection = getVoiceConnection(serverQueue.guildId);
+        const player = connection?.state.subscription?.player;
+  
+        player?.stop();
+  
+        serverQueue.songs.shift();
+        play(serverQueue);
+      } else {
+        serverQueue.songs.shift();
+        play(serverQueue);
+      }
+    } catch (error) {
+      console.error("Error occurred while skipping song:", error);
+      message.channel.send("An error occurred while trying to skip the song.");
     }
   } else if (message.content.startsWith("!queue")) {
     const serverQueue = queues.get(message.guild.id);
@@ -176,6 +188,8 @@ client.on("messageCreate", async (message) => {
     return message.reply('Bullshit BULLSHIT 😤');
   } 
 });
+
+
 async function play(serverQueue) {
   const url = serverQueue.songs[0];
 
@@ -184,24 +198,38 @@ async function play(serverQueue) {
     return;
   }
 
-  const stream = await streamDL(url, { quality: 0 });
-  const resource = createAudioResource(stream.stream, {
-    inputType: stream.type,
-  });
-  const player = createAudioPlayer();
+  try {
+    const stream = await streamDL(url, { quality: 0 });
 
-  player.on("error", (error) => {
-    console.error(`Error: ${error.message}`);
-  });
+    const resource = createAudioResource(stream.stream, {
+      inputType: stream.type,
+    });
+    const player = createAudioPlayer();
 
-  player.on(AudioPlayerStatus.Idle, () => {
+    player.on("error", (error) => {
+      console.error(`Error: ${error.message}`);
+    });
+
+    player.on(AudioPlayerStatus.Idle, () => {
+      serverQueue.songs.shift();
+      play(serverQueue);
+    });
+
+    player.play(resource);
+    serverQueue.connection.subscribe(player);
+  } catch (error) {
+    if (error.message.includes("Sign in to confirm your age")) {
+      serverQueue.textChannel.send("Sorry, I can't play age-restricted videos.");
+    } else {
+      console.error("Error playing song:", error);
+      serverQueue.textChannel.send("An error occurred while trying to play the song.");
+    }
     serverQueue.songs.shift();
     play(serverQueue);
-  });
-
-  player.play(resource);
-  serverQueue.connection.subscribe(player);
+  }
 }
+
+
 
 function isValidURL(str) {
   try {
