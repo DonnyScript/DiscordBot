@@ -24,6 +24,7 @@ const client = new Client({
   partials: ["CHANNEL", "MESSAGE"],
 });
 const queues = new Map();
+process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
 client.once("ready", () => {
   console.log(`We have logged in as ${client.user.tag}!`)
