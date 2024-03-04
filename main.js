@@ -24,15 +24,17 @@ const client = new Client({
   partials: ["CHANNEL", "MESSAGE"],
 });
 const queues = new Map();
-process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
+//process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
 client.once("ready", () => {
   console.log(`We have logged in as ${client.user.tag}!`)
 });
 
 client.on("messageCreate", async (message) => {
+
   if (message.content.startsWith("!play")) {
     const url = message.content.split(" ")[1];
+
     if (!url || !isValidURL(url)) {
       return message.reply("Please provide a valid URL!");
     }
@@ -65,13 +67,16 @@ client.on("messageCreate", async (message) => {
       serverQueue = queues.get(message.guild.id);
 
       play(serverQueue);
+
     } else {
       serverQueue.songs.push(url);
       return message.channel.send(`**${url}** has been added to the queue!`);
     }
   } else if (message.content.startsWith("!search")) {
-    if (!message.member.voice?.channel)
+    if (!message.member.voice?.channel){
       return message.channel.send("Connect to a Voice Channel");
+    }
+
     let serverQueue = queues.get(message.guild.id);
     const channel = message.member.voice.channel;
 
@@ -124,20 +129,20 @@ client.on("messageCreate", async (message) => {
       message.reply("There is no queue to skip!");
       return;
     }
-  
+
     if (serverQueue.songs.length === 0) {
       message.reply("There are no songs to skip!");
       return;
     }
-  
+
     try {
       if (serverQueue.songs.length === 1) {
         message.reply("Skipping last song");
         const connection = getVoiceConnection(serverQueue.guildId);
         const player = connection?.state.subscription?.player;
-  
+
         player?.stop();
-  
+
         serverQueue.songs.shift();
         play(serverQueue);
       } else {
@@ -175,18 +180,18 @@ client.on("messageCreate", async (message) => {
     fs.writeFileSync('userURLs.json', JSON.stringify([...userURLs]));
 
     return message.reply(`Your custom YouTube URL has been set to: ${url}`);
-  } else if (message.content.startsWith("Mazany lie detected. No cap.\nVote 🤥 to confirm the lie.\nVote 😇 to deny the lie.")){
-      
+  } else if (message.content.startsWith("Mazany lie detected. No cap.\nVote 🤥 to confirm the lie.\nVote 😇 to deny the lie.")) {
+
     return message.react('😇');
-      
-  } else if (message.content.includes('The Mazanys were fount to NOT be capping,')){
-      
+
+  } else if (message.content.includes('The Mazanys were fount to NOT be capping,')) {
+
     return message.reply('Thought so LOL 🇮🇱, always 0 in my book 😤');
-      
-  } else if (message.content.includes('The Mazanys were fount to be capping.')){
-      
+
+  } else if (message.content.includes('The Mazanys were fount to be capping.')) {
+
     return message.reply('Bullshit BULLSHIT 😤');
-  } 
+  }
 });
 
 
@@ -246,49 +251,49 @@ if (fs.existsSync('userURLs.json')) {
   userURLs = new Map(urlsFromFile);
 } else {
   userURLs = new Map([
-      ["418235415665836033", "https://www.youtube.com/watch?v=ZlfWZEeVsIs"], // Don
-      ["169243685681233921", "https://www.youtube.com/watch?v=bhw9dm6Aa7E"], // Adam
-      ["187361060045586434", "https://youtu.be/0fwGZFp3eFs"], // Alex 
-      ["187317666569125889","https://www.youtube.com/watch?v=6N7VrwlJWHk"], // Jack
-      ["169548589209485312", "https://youtu.be/sZNCyZ9MzFM"], // Ron
-      ["683092346635943987","https://youtu.be/6Tt3-pH_-uI"], // Aidan
-      ["320763862213197824",  "https://youtu.be/-I50RSN8H1I"], // Nate
-      ["288487330224799754", "https://youtu.be/Az3MPCGZErw"], // Matthew
-      ["286660053904392192", "https://youtu.be/Ntl3xYpcArk"], // Dale
-      ["284460599356948481", "https://youtu.be/MifVMz_THmI"], // Nick
-      ["145885178701676544", "https://youtu.be/JowcMqHitew"], // Matt
+    ["418235415665836033", "https://www.youtube.com/watch?v=ZlfWZEeVsIs"], // Don
+    ["169243685681233921", "https://www.youtube.com/watch?v=bhw9dm6Aa7E"], // Adam
+    ["187361060045586434", "https://youtu.be/0fwGZFp3eFs"], // Alex 
+    ["187317666569125889", "https://www.youtube.com/watch?v=6N7VrwlJWHk"], // Jack
+    ["169548589209485312", "https://youtu.be/sZNCyZ9MzFM"], // Ron
+    ["683092346635943987", "https://youtu.be/6Tt3-pH_-uI"], // Aidan
+    ["320763862213197824", "https://youtu.be/-I50RSN8H1I"], // Nate
+    ["288487330224799754", "https://youtu.be/Az3MPCGZErw"], // Matthew
+    ["286660053904392192", "https://youtu.be/Ntl3xYpcArk"], // Dale
+    ["284460599356948481", "https://youtu.be/MifVMz_THmI"], // Nick
+    ["145885178701676544", "https://youtu.be/JowcMqHitew"], // Matt
   ]);
 }
 
-  client.on("voiceStateUpdate", async (oldState, newState) => {
-    if (!oldState.channelId && newState.channelId) {
-      const url = userURLs.get(newState.member.id);
-      if (url) {
-        let serverQueue = queues.get(newState.guild.id);
-  
-        if (serverQueue) {
-          serverQueue.songs.push(url);
-          console.log(`**${url}** has been added to the queue!`);
-        } else {
-          console.log(`No queue found for this guild.`);
-          const connection = joinVoiceChannel({
-            channelId: newState.channelId,
-            guildId: newState.guild.id,
-            adapterCreator: oldState.guild.voiceAdapterCreator,
-          });
-          const streamResult = await streamDL(url, { quality: 0 });
-          const resource = createAudioResource(streamResult.stream, {
-            inputType: streamResult.type,
-          });
-          const player = createAudioPlayer();
-  
-          player.play(resource);
-          connection.subscribe(player);
-        }
+client.on("voiceStateUpdate", async (oldState, newState) => {
+  if (!oldState.channelId && newState.channelId) {
+    const url = userURLs.get(newState.member.id);
+    if (url) {
+      let serverQueue = queues.get(newState.guild.id);
+
+      if (serverQueue) {
+        serverQueue.songs.push(url);
+        console.log(`**${url}** has been added to the queue!`);
+      } else {
+        console.log(`No queue found for this guild.`);
+        const connection = joinVoiceChannel({
+          channelId: newState.channelId,
+          guildId: newState.guild.id,
+          adapterCreator: oldState.guild.voiceAdapterCreator,
+        });
+        const streamResult = await streamDL(url, { quality: 0 });
+        const resource = createAudioResource(streamResult.stream, {
+          inputType: streamResult.type,
+        });
+        const player = createAudioPlayer();
+
+        player.play(resource);
+        connection.subscribe(player);
       }
     }
-  });
-  
+  }
+});
+
 
 //Last line
 client.login(
