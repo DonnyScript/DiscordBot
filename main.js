@@ -24,6 +24,8 @@ const client = new Client({
   partials: ["CHANNEL", "MESSAGE"],
 });
 const queues = new Map();
+const playlists = new Map();
+
 //process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
 client.once("ready", () => {
@@ -31,48 +33,115 @@ client.once("ready", () => {
 });
 
 client.on("messageCreate", async (message) => {
+  const [command, ...args] = message.content.split(" ");
 
-  if (message.content.startsWith("!play")) {
-    const url = message.content.split(" ")[1];
+  if (command === '!playlist') {
+    const subCommand = args[1];
+    const playlistName = args[0];
+    const youtubeURL = args.slice(2).join(' ');
 
-    if (!url || !isValidURL(url)) {
-      return message.reply("Please provide a valid URL!");
+    if (!subCommand || !playlistName) {
+        message.reply('Invalid command! Usage:!playlist create <playlist_name> or !playlist <playlist_name> add <YouTube_URL> or !playlist <playlist_name> delete or !playlist <playlist_name> display');
+        return;
     }
 
-    const channel = message.member.voice.channel;
-    if (!channel)
-      return message.reply("Join a channel!");
+    if (subCommand === 'create') {
+        if (!playlistName) {
+            message.reply('Please provide a name for the playlist.');
+            return;
+        }
+        createPlaylist(playlistName);
+    } else if (subCommand === 'add') {
+        if (!youtubeURL) {
+            message.reply('Please provide the YouTube URL to add to the playlist.');
+            return;
+        }
+        addLinkToPlaylist(playlistName, youtubeURL);
+    } else if (subCommand === 'delete') {
+    deleteFromPlaylist(playlistName, message);
 
-    let serverQueue = queues.get(message.guild.id);
+    } else if (subCommand == 'display'){
+      displayPlaylist(playlistName,message);
+    } else {
+        message.reply('Invalid sub-command!');
+    }
+} else if (command === "!play") {
+  const input = args.join(" ");
+  const channel = message.member.voice.channel;
 
-    if (!serverQueue) {
+  if (!channel) return message.reply("Join a channel!");
+
+  let serverQueue = queues.get(message.guild.id);
+
+  try {
+      let playlists = [];
+      if (fs.existsSync('playlists.json')) {
+          const playlistsContent = fs.readFileSync('playlists.json');
+          playlists = JSON.parse(playlistsContent);
+      }
+
+      const playlist = playlists.find(p => p.name === input);
+      if (playlist) {
+          console.log(`Input "${input}" matches a recognized playlist name.`);
+          if (!serverQueue) {
+              serverQueue = {
+                  guildId: message.guild.id,
+                  voiceChannel: channel,
+                  textChannel: message.channel,
+                  connection: null,
+                  songs: [],
+              };
+              queues.set(message.guild.id, serverQueue);
+          }
+          playlist.links.forEach(link => {
+              serverQueue.songs.push(link.url);
+          });
+
+          if (!serverQueue.connection) {
+              serverQueue.connection = joinVoiceChannel({
+                  channelId: channel.id,
+                  guildId: message.guild.id,
+                  adapterCreator: message.guild.voiceAdapterCreator,
+              });
+              play(serverQueue);
+          }
+
+          return message.channel.send(`Playlist "${input}" has been added to the queue!`);
+      }
+  } catch (error) {
+      console.error(`Error checking playlist: ${error}`);
+      return message.reply("An error occurred while checking the playlist.");
+  }
+
+  const url = input;
+
+  if (!url || !isValidURL(url)) {
+      return message.reply("Please provide a valid URL or playlist name!");
+  }
+
+  if (!serverQueue) {
       const queueConstructor = {
-        guildId: message.guild.id,
-        voiceChannel: channel,
-        textChannel: message.channel,
-        connection: null,
-        songs: [],
+          guildId: message.guild.id,
+          voiceChannel: channel,
+          textChannel: message.channel,
+          connection: null,
+          songs: [url],
       };
 
       queueConstructor.connection = joinVoiceChannel({
-        channelId: channel.id,
-        guildId: message.guild.id,
-        adapterCreator: message.guild.voiceAdapterCreator,
+          channelId: channel.id,
+          guildId: message.guild.id,
+          adapterCreator: message.guild.voiceAdapterCreator,
       });
-
-      queueConstructor.songs.push(url);
 
       queues.set(message.guild.id, queueConstructor);
 
-      serverQueue = queues.get(message.guild.id);
-
-      play(serverQueue);
-
-    } else {
+      play(queueConstructor);
+  } else {
       serverQueue.songs.push(url);
       return message.channel.send(`**${url}** has been added to the queue!`);
-    }
-  } else if (message.content.startsWith("!search")) {
+  }
+} else if (message.content.startsWith("!search")) {
     if (!message.member.voice?.channel){
       return message.channel.send("Connect to a Voice Channel");
     }
@@ -180,6 +249,42 @@ client.on("messageCreate", async (message) => {
     fs.writeFileSync('userURLs.json', JSON.stringify([...userURLs]));
 
     return message.reply(`Your custom YouTube URL has been set to: ${url}`);
+
+  } else if (message.content.startsWith("!pause")) {
+    const serverQueue = queues.get(message.guild.id);
+
+    if(!serverQueue){
+      return message.reply("There is no song to pause");
+    }
+
+    if (!serverQueue.connection) {
+      return message.reply("There is no song playing to pause.");
+    } 
+
+    if(!serverQueue.connection.state.subscription.player.pause()){
+      return message.reply("Song is already paused")
+    }
+
+    serverQueue.connection.state.subscription.player.pause();
+    message.reply("The song has been paused.");
+
+  } else if (message.content.startsWith("!resume")) {
+    const serverQueue = queues.get(message.guild.id);
+
+    if(!serverQueue){
+      return message.reply("There is no song to resume");
+    }
+
+    if (!serverQueue.connection) {
+      return message.reply("There is no song paused to resume.");
+    } 
+
+    if(!serverQueue.connection.state.subscription.player.unpause()){
+      return message.reply("Song is already playing")
+    }
+
+    serverQueue.connection.state.subscription.player.unpause();
+    message.reply("Resuming playback.");
   } else if (message.content.startsWith("Mazany lie detected. No cap.\nVote 🤥 to confirm the lie.\nVote 😇 to deny the lie.")) {
 
     return message.react('😇');
@@ -233,6 +338,173 @@ async function play(serverQueue) {
     play(serverQueue);
   }
 }
+
+function createPlaylist(playlistName) {
+  try {
+      let playlists = [];
+
+      if (fs.existsSync('playlists.json')) {
+          const playlistsContent = fs.readFileSync('playlists.json');
+          playlists = JSON.parse(playlistsContent);
+      }
+
+      if (playlists.find(playlist => playlist.name === playlistName)) {
+          console.error(`Playlist "${playlistName}" already exists.`);
+          return;
+      }
+
+      playlists.push({ name: playlistName, links: [] });
+
+      fs.writeFileSync('playlists.json', JSON.stringify(playlists, null, 2));
+      console.log(`Playlist "${playlistName}" created successfully.`);
+  } catch (error) {
+      console.error(`Error creating playlist "${playlistName}":`, error);
+  }
+}
+
+
+
+
+async function addLinkToPlaylist(playlistName, youtubeURL) {
+  try {
+      let playlists = [];
+
+      if (fs.existsSync('playlists.json')) {
+          const playlistsContent = fs.readFileSync('playlists.json');
+          playlists = JSON.parse(playlistsContent);
+      }
+
+      const playlist = playlists.find(p => p.name === playlistName);
+      if (!playlist) {
+          console.error(`Playlist "${playlistName}" not found.`);
+          return;
+      }
+
+      const linkNumber = playlist.links.length + 1;
+
+      playlist.links.push({ number: linkNumber, url: youtubeURL });
+
+      fs.writeFileSync('playlists.json', JSON.stringify(playlists, null, 2));
+      //console.log(`Added "${youtubeURL}" to "${playlistName}" playlist with number ${linkNumber}.`);
+      message.channel.send(`Added "${youtubeURL}" to "${playlistName}" playlist with number ${linkNumber}.`);
+  } catch (error) {
+      console.error(`Error adding link to "${playlistName}" playlist:`, error);
+  }
+}
+
+async function deleteFromPlaylist(playlistName, message) {
+  try {
+      let playlists = [];
+
+      if (fs.existsSync('playlists.json')) {
+          const playlistsContent = fs.readFileSync('playlists.json');
+          playlists = JSON.parse(playlistsContent);
+      }
+
+      if (!Array.isArray(playlists)) {
+          console.error('Invalid playlists data.');
+          return;
+      }
+
+      const playlistIndex = playlists.findIndex(p => p.name === playlistName);
+      if (playlistIndex === -1) {
+          console.error(`Playlist "${playlistName}" not found.`);
+          message.channel.send(`Playlist "${playlistName}" not found.`);
+          return;
+      }
+
+      const playlist = playlists[playlistIndex];
+      const linksWithIndex = playlist.links.map((link, index) => `${index + 1}: ${link.url}`);
+      const playlistString = `Playlist "${playlistName}":\n${linksWithIndex.join('\n')}`;
+
+      console.log(playlistString);
+      message.channel.send(playlistString);
+
+      const filter = response => {
+          return !isNaN(response.content) && response.content > 0 && response.content <= playlist.links.length;
+      };
+      message.channel.send('Enter the number of the link you want to delete:').then(() => {
+          message.channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] })
+              .then(collected => {
+                  const numberToDelete = parseInt(collected.first().content);
+                  playlist.links.splice(numberToDelete - 1, 1);
+                  fs.writeFileSync('playlists.json', JSON.stringify(playlists, null, 2));
+                  message.channel.send(`Deleted link number ${numberToDelete} from playlist "${playlistName}".`);
+              })
+              .catch(collected => {
+                  message.channel.send('No valid input received within 30 seconds, operation cancelled.');
+              });
+      });
+  } catch (error) {
+      console.error(`Error deleting link from "${playlistName}" playlist:`, error);
+  }
+}
+
+async function displayPlaylist(playlistName, message) {
+  try {
+    let playlists = [];
+
+    if (fs.existsSync('playlists.json')) {
+        const playlistsContent = fs.readFileSync('playlists.json');
+        playlists = JSON.parse(playlistsContent);
+    }
+
+    if (!Array.isArray(playlists)) {
+        console.error('Invalid playlists data.');
+        return;
+    }
+
+    const playlistIndex = playlists.findIndex(p => p.name === playlistName);
+    if (playlistIndex === -1) {
+        console.error(`Playlist "${playlistName}" not found.`);
+        message.channel.send(`Playlist "${playlistName}" not found.`);
+        return;
+    }
+
+    const playlist = playlists[playlistIndex];
+    const linksWithIndex = playlist.links.map((link, index) => `${index + 1}: ${link.url}`);
+    const playlistString = `Playlist "${playlistName}":\n${linksWithIndex.join('\n')}`;
+
+    message.channel.send(playlistString);
+} catch (error) {
+    console.error(`Error deleting link from "${playlistName}" playlist:`, error);
+}
+}
+
+
+function addToQueue(url) {
+  try {
+    let playlists = [];
+
+    if (fs.existsSync('playlists.json')) {
+        const playlistsContent = fs.readFileSync('playlists.json');
+        playlists = JSON.parse(playlistsContent);
+    }
+
+    if (!Array.isArray(playlists)) {
+        console.error('Invalid playlists data.');
+        return;
+    }
+
+    const playlistIndex = playlists.findIndex(p => p.name === playlistName);
+    if (playlistIndex === -1) {
+        console.error(`Playlist "${playlistName}" not found.`);
+        message.channel.send(`Playlist "${playlistName}" not found.`);
+        return;
+    }
+
+    const playlist = playlists[playlistIndex];
+    const linksWithIndex = playlist.links.map((link, index) => `${index + 1}: ${link.url}`);
+    const playlistString = `Playlist "${playlistName}":\n${linksWithIndex.join('\n')}`;
+
+    message.channel.send(playlistString);
+} catch (error) {
+    console.error(`Error deleting link from "${playlistName}" playlist:`, error);
+}
+}
+
+
+
 
 
 
