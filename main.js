@@ -27,8 +27,6 @@ const client = new Client({
 const queues = new Map();
 const playlists = new Map();
 
-//process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
-
 client.once("ready", () => {
   console.log(`We have logged in as ${client.user.tag}!`)
 });
@@ -66,7 +64,10 @@ client.on("messageCreate", async (message) => {
     } else {
         message.reply('Invalid sub-command!');
     }
-  }  if (command === "!play") {
+  } 
+  
+  
+  if (command === "!play") {
     const input = args.join(" ");
     const channel = message.member.voice.channel;
 
@@ -75,106 +76,108 @@ client.on("messageCreate", async (message) => {
     let serverQueue = queues.get(message.guild.id);
 
     try {
-      let playlists = [];
-      if (fs.existsSync("playlists.json")) {
-        const playlistsContent = fs.readFileSync("playlists.json");
-        playlists = JSON.parse(playlistsContent);
-      }
-
-      const playlist = playlists.find((p) => p.name === input);
-      if (playlist) {
-        console.log(`Input "${input}" matches a recognized playlist name.`);
-        if (!serverQueue) {
-          serverQueue = {
-            guildId: message.guild.id,
-            voiceChannel: channel,
-            textChannel: message.channel,
-            connection: null,
-            songs: [],
-          };
-          queues.set(message.guild.id, serverQueue);
-        }
-        const shuffledLinks = shuffleArray(playlist.links);
-        shuffledLinks.forEach((link) => {
-          serverQueue.songs.push(link.url);
-        });
-
-        if (!serverQueue.connection) {
-          serverQueue.connection = joinVoiceChannel({
-            channelId: channel.id,
-            guildId: message.guild.id,
-            adapterCreator: message.guild.voiceAdapterCreator,
-          });
-          play(serverQueue);
+        let playlists = [];
+        if (fs.existsSync("playlists.json")) {
+            const playlistsContent = fs.readFileSync("playlists.json");
+            playlists = JSON.parse(playlistsContent);
         }
 
-        return message.channel.send(
-          `Playlist "${input}" has been added to the queue!`
-        );
-      }
+        const playlist = playlists.find((p) => p.name === input);
+        if (playlist) {
+            console.log(`Input "${input}" matches a recognized playlist name.`);
+            if (!serverQueue) {
+                serverQueue = {
+                    guildId: message.guild.id,
+                    voiceChannel: channel,
+                    textChannel: message.channel,
+                    connection: null,
+                    songs: [],
+                };
+                queues.set(message.guild.id, serverQueue);
+            }
+            const shuffledLinks = shuffleArray(playlist.links);
+            shuffledLinks.forEach((link) => {
+                serverQueue.songs.push(link.url);
+            });
+
+            if (!serverQueue.connection) {
+                serverQueue.connection = joinVoiceChannel({
+                    channelId: channel.id,
+                    guildId: message.guild.id,
+                    adapterCreator: message.guild.voiceAdapterCreator,
+                });
+                play(serverQueue);
+            }
+
+            return message.channel.send(
+                `Playlist "${input}" has been added to the queue!`
+            );
+        }
     } catch (error) {
-      console.error(`Error checking playlist: ${error}`);
-      return message.reply("An error occurred while checking the playlist.");
+        console.error(`Error checking playlist: ${error}`);
+        return message.reply("An error occurred while checking the playlist.");
     }
-
     try {
-      if (!message.member.voice.channel) {
-        return message.channel.send("Connect to a Voice Channel");
-      }
+        if (!message.member.voice.channel) {
+            return message.channel.send("Connect to a Voice Channel");
+        }
 
-      let serverQueue = queues.get(message.guild.id);
-      const channel = message.member.voice.channel;
+        let serverQueue = queues.get(message.guild.id);
+        const channel = message.member.voice.channel;
 
-      let yt_info = await search.search(input, {
-        limit: 1,
-      });
-
-      if (!yt_info || yt_info.length === 0) {
-        throw new Error("No search results found.");
-      }
-
-      if (!serverQueue) {
-        const queueConstructor = {
-          guildId: message.guild.id,
-          voiceChannel: channel,
-          textChannel: message.channel,
-          connection: null,
-          songs: [],
-        };
-
-        queueConstructor.connection = joinVoiceChannel({
-          channelId: channel.id,
-          guildId: message.guild.id,
-          adapterCreator: message.guild.voiceAdapterCreator,
+        let yt_info = await search.search(input, {
+            limit: 1,
         });
 
-        let stream = await search.stream(yt_info[0].url);
+        if (!yt_info || yt_info.length === 0) {
+            throw new Error("No search results found.");
+        }
 
-        let resource = createAudioResource(stream.stream, {
-          inputType: stream.type,
-        });
+        if (!serverQueue) {
+            const queueConstructor = {
+                guildId: message.guild.id,
+                voiceChannel: channel,
+                textChannel: message.channel,
+                connection: null,
+                songs: [],
+            };
 
-        let player = createAudioPlayer({
-          behaviors: {
-            noSubscriber: NoSubscriberBehavior.Play,
-          },
-        });
+            queueConstructor.connection = joinVoiceChannel({
+                channelId: channel.id,
+                guildId: message.guild.id,
+                adapterCreator: message.guild.voiceAdapterCreator,
+            });
 
-        queueConstructor.songs.push(yt_info[0].url);
-        queues.set(message.guild.id, queueConstructor);
-        serverQueue = queues.get(message.guild.id);
-        play(serverQueue);
-      } else {
-        serverQueue.songs.push(yt_info[0].url);
-        return message.channel.send(
-          `**${yt_info[0].url}** has been added to the queue!`
-        );
-      }
+            let stream = await search.stream(yt_info[0].url);
+
+            let resource = createAudioResource(stream.stream, {
+                inputType: stream.type,
+            });
+
+            let player = createAudioPlayer({
+                behaviors: {
+                    noSubscriber: NoSubscriberBehavior.Play,
+                },
+            });
+
+            queueConstructor.songs.push(yt_info[0].url);
+            queues.set(message.guild.id, queueConstructor);
+            serverQueue = queues.get(message.guild.id);
+            play(serverQueue);
+        } else {
+            serverQueue.songs.push(yt_info[0].url);
+            return message.channel.send(
+                `**${yt_info[0].url}** has been added to the queue!`
+            );
+        }
     } catch (error) {
-      console.error(`Error searching for the song: ${error}`);
-      return message.reply("An error occurred while searching for the song.");
+        console.error(`Error searching for the song: ${error}`);
+        return message.reply("No search results found or an error occurred while searching for the song.");
     }
-  } else if (message.content.startsWith("!skip")) {
+} 
+
+
+else if (message.content.startsWith("!skip")) {
     const serverQueue = queues.get(message.guild.id);
 
     if (!serverQueue) {
@@ -205,7 +208,10 @@ client.on("messageCreate", async (message) => {
       console.error("Error occurred while skipping song:", error);
       message.channel.send("An error occurred while trying to skip the song.");
     }
-  } else if (message.content.startsWith("!queue")) {
+  } 
+  
+  
+  else if (message.content.startsWith("!queue")) {
     const serverQueue = queues.get(message.guild.id);
 
     if (!serverQueue || serverQueue.songs.length == 0) {
@@ -217,12 +223,18 @@ client.on("messageCreate", async (message) => {
       });
       return message.channel.send(text);
     }
-  } else if (message.content.startsWith("!stop")) {
+  } 
+  
+  
+  else if (message.content.startsWith("!stop")) {
     const serverQueue = queues.get(message.guild.id);
     serverQueue.connection.disconnect();
     queues.delete(serverQueue.guildId);
     return;
-  } else if (message.content.startsWith("!seturl")) {
+  } 
+  
+  
+  else if (message.content.startsWith("!seturl")) {
     const url = message.content.split(' ')[1];
     if (!url || !isValidURL(url)) {
       return message.reply('Please provide a valid YouTube URL!');
@@ -233,7 +245,10 @@ client.on("messageCreate", async (message) => {
 
     return message.reply(`Your custom YouTube URL has been set to: ${url}`);
 
-  } else if (message.content.startsWith("!pause")) {
+  } 
+  
+  
+  else if (message.content.startsWith("!pause")) {
     const serverQueue = queues.get(message.guild.id);
 
     if(!serverQueue){
@@ -251,7 +266,10 @@ client.on("messageCreate", async (message) => {
     serverQueue.connection.state.subscription.player.pause();
     message.reply("The song has been paused.");
 
-  } else if (message.content.startsWith("!resume")) {
+  } 
+  
+  
+  else if (message.content.startsWith("!resume")) {
     const serverQueue = queues.get(message.guild.id);
 
     if(!serverQueue){
@@ -268,7 +286,10 @@ client.on("messageCreate", async (message) => {
 
     serverQueue.connection.state.subscription.player.unpause();
     message.reply("Resuming playback.");
-  } else if (message.content.startsWith("Mazany lie detected. No cap.\nVote 🤥 to confirm the lie.\nVote 😇 to deny the lie.")) {
+  } 
+  
+  
+  else if (message.content.startsWith("Mazany lie detected. No cap.\nVote 🤥 to confirm the lie.\nVote 😇 to deny the lie.")) {
 
     return message.react('😇');
 
