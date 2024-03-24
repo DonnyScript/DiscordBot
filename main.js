@@ -579,5 +579,5 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
 
 //Last line
 client.login(
-  "MTEzMzQ2NDAwNjE1NDI3Mjg5OQ.GiFp7R.XSmUS7vcLuIzsZXqKnirGbQ2vDUGtf05BlXVok"
+  ""
 );
